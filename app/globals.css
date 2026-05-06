@@ -26,6 +26,20 @@
   --terracotta: #C4622D;
   --terracotta-light: #E8845A;
   --warm-white: #FDFAF7;
+  
+  /* Responsive Tokens */
+  --page-px: 3rem;
+  --page-max-width: 1200px;
+  --hero-pt: 8rem;
+  --section-py: 5rem;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --page-px: 1.5rem;
+    --hero-pt: 6rem;
+    --section-py: 4rem;
+  }
 }
 
 * {
@@ -61,4 +75,66 @@ body::before {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Layout Utilities */
+.container {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding-left: var(--page-px);
+  padding-right: var(--page-px);
+}
+
+.section-py {
+  padding-top: var(--section-py);
+  padding-bottom: var(--section-py);
+}
+
+.case-study-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 2rem;
+  padding: 2.5rem 0;
+  background-color: var(--cream);
+  transition: background-color 0.2s ease, padding-left 0.2s ease;
+  cursor: pointer;
+}
+
+.case-study-card:hover {
+  background-color: var(--cream-dark);
+  padding-left: 1.5rem;
+}
+
+@media (max-width: 640px) {
+  .case-study-card {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    padding: 2rem 0;
+  }
+  
+  .case-study-card .arrow {
+    display: none;
+  }
+}
+
+/* Notion Specific Blocks */
+.column-list {
+  display: flex;
+  gap: 2rem;
+  margin: 2rem 0;
+  align-items: flex-start;
+}
+
+@media (max-width: 768px) {
+  .column-list {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+.case-study-content {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: 2rem var(--page-px) 8rem;
 }

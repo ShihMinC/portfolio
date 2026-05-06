@@ -1,6 +1,7 @@
 // app/work/[id]/page.tsx
-import { notion } from "@/lib/notion";
+import { notion, getCaseStudies } from "@/lib/notion";
 import { notFound } from "next/navigation";
+import Navbar from "@/components/Navbar";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -16,11 +17,21 @@ function getProperty(props: any, key: string, type: string) {
 
 /** Recursively fetch blocks, including children of column_list/column/toggle etc. */
 async function getBlocksRecursive(blockId: string): Promise<any[]> {
-  const response = await notion.blocks.children.list({ block_id: blockId, page_size: 100 });
-  const blocks = response.results as any[];
+  let allBlocks: any[] = [];
+  let cursor: string | undefined = undefined;
+
+  do {
+    const response = await notion.blocks.children.list({ 
+      block_id: blockId, 
+      page_size: 100,
+      start_cursor: cursor 
+    });
+    allBlocks.push(...response.results);
+    cursor = response.next_cursor || undefined;
+  } while (cursor);
 
   const withChildren = await Promise.all(
-    blocks.map(async (block) => {
+    allBlocks.map(async (block) => {
       if (block.has_children) {
         block._children = await getBlocksRecursive(block.id);
       }
@@ -70,14 +81,14 @@ function Block({ block }: { block: any }) {
 
     case "heading_1":
       return (
-        <h1 key={id} style={{ fontFamily: "Lora, serif", fontSize: "clamp(1.6rem, 3vw, 2.2rem)", fontWeight: 400, color: "var(--ink)", margin: "3rem 0 1rem", lineHeight: 1.3 }}>
+        <h1 key={id} style={{ fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)", fontSize: "clamp(1.8rem, 3.5vw, 2.5rem)", fontWeight: 700, color: "var(--ink)", margin: "4rem 0 1.5rem", lineHeight: 1.3 }}>
           <RichText rich_text={value.rich_text} />
         </h1>
       );
 
     case "heading_2":
       return (
-        <h2 key={id} style={{ fontFamily: "Lora, serif", fontSize: "clamp(1.2rem, 2.5vw, 1.6rem)", fontWeight: 400, color: "var(--ink)", margin: "2.5rem 0 0.75rem", lineHeight: 1.4 }}>
+        <h2 key={id} style={{ fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)", fontSize: "clamp(1.5rem, 3vw, 2rem)", fontWeight: 700, color: "var(--ink)", margin: "3.5rem 0 1rem", lineHeight: 1.4 }}>
           <RichText rich_text={value.rich_text} />
         </h2>
       );
@@ -197,22 +208,23 @@ function Block({ block }: { block: any }) {
 
     case "column_list":
       return (
-        <div key={id} style={{
-          display: "grid",
-          gridTemplateColumns: `repeat(${block._children?.length ?? 2}, 1fr)`,
-          gap: "2rem",
-          margin: "2rem 0",
-        }}>
+        <div key={id} className="column-list">
           {block._children?.map((col: any) => <Block key={col.id} block={col} />)}
         </div>
       );
 
-    case "column":
+    case "column": {
+      const ratio = value?.width_ratio as number | undefined;
+      const flexStyle = ratio
+        ? { flex: `0 0 calc(${ratio * 100}% - 1rem)`, minWidth: 0 }
+        : { flex: "1 1 0", minWidth: 0 };
       return (
-        <div key={id} style={{ minWidth: 0 }}>
+        <div key={id} style={{ ...flexStyle, overflow: "hidden" }}>
           {block._children?.map((c: any) => <Block key={c.id} block={c} />)}
         </div>
       );
+    }
+
 
     case "table": {
       const children = block._children ?? [];
@@ -259,7 +271,6 @@ function Block({ block }: { block: any }) {
     }
 
     default:
-      // Unsupported block — render nothing silently
       return null;
   }
 }
@@ -313,66 +324,84 @@ function renderGroup(group: any) {
 
 export default async function CaseStudyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  let page: any;
-  try {
-    page = await notion.pages.retrieve({ page_id: id });
-  } catch {
-    notFound();
-  }
+  
+  const [page, caseStudiesRaw] = await Promise.all([
+    notion.pages.retrieve({ page_id: id }).catch(() => null),
+    getCaseStudies()
+  ]);
+
+  if (!page) notFound();
 
   const blocks = await getBlocksRecursive(id);
 
-  const name = getProperty(page.properties, "Name", "title");
-  const subtitle = getProperty(page.properties, "Subtitle", "rich_text");
-  const tags = getProperty(page.properties, "Tags", "multi_select") as string[];
+  const navItems = caseStudiesRaw.map((p: any) => {
+    const fullName = getProperty(p.properties, "Name", "title");
+    const [title] = fullName.split("．");
+    return { id: p.id, title: title?.trim() ?? fullName };
+  });
+
+  const props = (page as any).properties;
+  const name = getProperty(props, "Name", "title");
+  const subtitle = getProperty(props, "Subtitle", "rich_text");
+  const tags = getProperty(props, "Tags", "multi_select") as string[];
   const [title, year] = name.split("．");
+
+  // Cover image
+  const rawCover = (page as any).cover?.type === "external"
+    ? (page as any).cover.external?.url
+    : (page as any).cover?.file?.url;
+  const coverSrc = rawCover ? proxyImageUrl(rawCover) : null;
 
   const groups = groupBlocks(blocks);
 
   return (
     <main style={{ minHeight: "100vh" }}>
-      {/* Nav */}
-      <nav style={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "2rem 3rem", position: "sticky", top: 0, zIndex: 10,
-        backdropFilter: "blur(12px)", backgroundColor: "rgba(247,243,238,0.85)",
-        borderBottom: "1px solid rgba(28,25,23,0.06)",
-      }}>
-        <a href="/" style={{ fontFamily: "Lora, serif", fontSize: "1.1rem", fontWeight: 500 }}>
-          Shih-Min Chen
-        </a>
-        <div style={{ display: "flex", gap: "2rem" }}>
-          <a href="/" style={{ fontSize: "0.9rem", color: "var(--ink-light)" }}>Work</a>
-          <a href="/about" style={{ fontSize: "0.9rem", color: "var(--ink-light)" }}>About</a>
-        </div>
-      </nav>
+      <Navbar caseStudies={navItems} />
 
-      {/* Header */}
-      <header style={{ padding: "5rem 3rem 3rem", maxWidth: "800px" }}>
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-          {tags.map(tag => (
-            <span key={tag} style={{
-              fontSize: "0.7rem", letterSpacing: "0.08em", textTransform: "uppercase",
-              padding: "0.25rem 0.6rem", backgroundColor: "rgba(196,98,45,0.08)",
-              color: "var(--terracotta)", borderRadius: "2px", fontWeight: 500,
-            }}>
-              {tag}
-            </span>
-          ))}
-          {year && <span style={{ fontSize: "0.7rem", color: "var(--ink-light)", alignSelf: "center" }}>{year.trim()}</span>}
+      {/* Full-width cover image */}
+      {coverSrc && (
+        <div style={{ width: "100%", maxHeight: "520px", overflow: "hidden", lineHeight: 0 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={coverSrc}
+            alt={title?.trim() ?? "Case study cover"}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", maxHeight: "520px" }}
+          />
         </div>
-        <h1 style={{ fontFamily: "Lora, serif", fontSize: "clamp(2rem, 4vw, 3rem)", fontWeight: 400, lineHeight: 1.2, marginBottom: "1rem" }}>
+      )}
+
+      {/* Title / subtitle header */}
+      <header className="container" style={{ paddingTop: "4rem", paddingBottom: "2rem" }}>
+        <h1 style={{ 
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)", 
+          fontSize: "clamp(2rem, 5vw, 3rem)", 
+          fontWeight: 700, 
+          lineHeight: 1.1, 
+          marginBottom: "0.5rem",
+          color: "var(--ink)",
+        }}>
           {title?.trim()}
         </h1>
-        <p style={{ fontSize: "1.1rem", color: "var(--ink-light)", fontWeight: 300, lineHeight: 1.6 }}>
-          {subtitle}
-        </p>
+        {subtitle && (
+          <p style={{ 
+            fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+            fontSize: "clamp(1.2rem, 2.5vw, 1.8rem)", 
+            color: "var(--ink-light)", 
+            fontWeight: 600, 
+            fontStyle: "italic",
+            lineHeight: 1.4,
+            marginBottom: "1rem",
+          }}>
+            {subtitle}
+          </p>
+        )}
       </header>
 
-      <div style={{ height: "1px", backgroundColor: "rgba(28,25,23,0.1)", margin: "0 3rem" }} />
+      <div className="container">
+        <div style={{ height: "1px", backgroundColor: "rgba(28,25,23,0.1)" }} />
+      </div>
 
-      {/* Content */}
-      <article style={{ padding: "4rem 3rem 8rem", maxWidth: "720px" }}>
+      <article className="case-study-content">
         {groups.map(renderGroup)}
       </article>
     </main>

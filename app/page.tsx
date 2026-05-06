@@ -1,6 +1,6 @@
 import { getCaseStudies } from "@/lib/notion";
-import Link from "next/link";
 import CaseStudyCard from "@/components/CaseStudyCard";
+import Navbar from "@/components/Navbar";
 
 function getProperty(props: any, key: string, type: string) {
   const prop = props[key];
@@ -15,35 +15,33 @@ function getProperty(props: any, key: string, type: string) {
 export default async function Home() {
   const caseStudies = await getCaseStudies();
 
+  // Build a lightweight list for the Navbar dropdown
+  const navItems = caseStudies.map((page: any) => {
+    const nameProp = page.properties["Name"];
+    const fullName = nameProp?.title?.[0]?.plain_text ?? "Untitled";
+    const [title] = fullName.split("．");
+    return { id: page.id, title: title?.trim() ?? fullName };
+  });
+
   return (
-    <main style={{ minHeight: "100vh", padding: "0" }}>
+    <main style={{ minHeight: "100vh" }}>
       {/* Nav */}
-      <nav style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "2rem 3rem",
-        position: "sticky",
-        top: 0,
-        zIndex: 10,
-        backdropFilter: "blur(12px)",
-        backgroundColor: "rgba(247,243,238,0.85)",
-        borderBottom: "1px solid rgba(28,25,23,0.06)",
-      }}>
-        <span style={{ fontFamily: "Lora, serif", fontSize: "1.1rem", fontWeight: 500 }}>
-          Shih-Min Chen
-        </span>
-        <div style={{ display: "flex", gap: "2rem" }}>
-          <Link href="/" style={{ fontSize: "0.9rem", color: "var(--terracotta)", fontWeight: 500 }}>Work</Link>
-          <Link href="/about" style={{ fontSize: "0.9rem", color: "var(--ink-light)" }}>About</Link>
-        </div>
-      </nav>
+      <Navbar caseStudies={navItems} />
 
       {/* Hero */}
-      <section style={{
-        padding: "6rem 3rem 4rem",
-        maxWidth: "900px",
+      <section className="container" style={{
+        paddingTop: "var(--hero-pt)",
+        paddingBottom: "var(--section-py)",
       }}>
+        <p style={{
+          fontFamily: "Lora, serif",
+          fontSize: "clamp(1.4rem, 4vw, 2rem)",
+          fontWeight: 400,
+          color: "var(--ink)",
+          marginBottom: "1rem",
+        }}>
+          Shih-Min Chen
+        </p>
         <p style={{
           fontSize: "0.8rem",
           letterSpacing: "0.12em",
@@ -52,56 +50,78 @@ export default async function Home() {
           marginBottom: "1.5rem",
           fontWeight: 500,
         }}>
-          UX & Product Designer
+          UX &amp; Product Designer
         </p>
         <h1 style={{
           fontFamily: "Lora, serif",
-          fontSize: "clamp(2.2rem, 5vw, 3.8rem)",
-          lineHeight: 1.2,
+          fontSize: "clamp(2.2rem, 8vw, 3.8rem)",
+          lineHeight: 1.1,
           fontWeight: 400,
           color: "var(--ink)",
-          maxWidth: "700px",
+          maxWidth: "800px",
         }}>
-          Creating clarity in B2B platforms, enterprise UX & AI tools
+          Creating clarity in B2B platforms, enterprise UX &amp; AI tools
         </h1>
         <p style={{
-          marginTop: "1.5rem",
-          fontSize: "1.05rem",
+          marginTop: "2rem",
+          fontSize: "clamp(1rem, 2vw, 1.15rem)",
           color: "var(--ink-light)",
-          lineHeight: 1.7,
-          maxWidth: "520px",
+          lineHeight: 1.6,
+          maxWidth: "560px",
           fontWeight: 300,
         }}>
-          Currently at ASUS AICS, designing healthcare systems and generative AI experiences.
+          Specializing in complex B2B platforms and AI-enabled workflows.
+          <br />
+          With expertise in enterprise UX @Asus AICS &amp; hands-on AI product design @Morph
         </p>
       </section>
 
+
       {/* Divider */}
-      <div style={{
-        margin: "0 3rem",
-        height: "1px",
-        backgroundColor: "rgba(28,25,23,0.1)",
-      }} />
+      <div className="container">
+        <div style={{
+          height: "1px",
+          backgroundColor: "rgba(28,25,23,0.1)",
+        }} />
+      </div>
 
       {/* Case Studies */}
-      <section style={{ padding: "4rem 3rem 8rem" }}>
+      <section className="container" style={{ 
+        paddingTop: "var(--section-py)",
+        paddingBottom: "8rem" 
+      }}>
         <p style={{
           fontSize: "0.75rem",
           letterSpacing: "0.1em",
           textTransform: "uppercase",
           color: "var(--ink-light)",
-          marginBottom: "3rem",
+          marginBottom: "2.5rem",
           fontWeight: 500,
         }}>
           Selected Work
         </p>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "1px", backgroundColor: "rgba(28,25,23,0.08)" }}>
+        <div style={{ 
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 360px), 1fr))",
+          gap: "1.5rem",
+        }}>
           {caseStudies.map((page: any) => {
             const name = getProperty(page.properties, "Name", "title");
             const subtitle = getProperty(page.properties, "Subtitle", "rich_text");
             const tags = getProperty(page.properties, "Tags", "multi_select") as string[];
             const [title, year] = name.split("．");
+
+            // Extract cover image URL from Notion page
+            const rawCover = page.cover?.type === "external"
+              ? page.cover.external?.url
+              : page.cover?.file?.url;
+            // Proxy signed S3 URLs through our API route
+            const cover = rawCover
+              ? (rawCover.includes("prod-files-secure.s3") || rawCover.includes("secure.notion-static")
+                  ? `/api/notion-image?url=${encodeURIComponent(rawCover)}`
+                  : rawCover)
+              : undefined;
 
             return (
               <CaseStudyCard
@@ -111,11 +131,68 @@ export default async function Home() {
                 year={year?.trim() ?? ""}
                 subtitle={subtitle}
                 tags={tags}
+                cover={cover}
               />
             );
           })}
         </div>
       </section>
+
+      {/* Footer */}
+      <Footer />
     </main>
+  );
+}
+
+function Footer() {
+  return (
+    <footer style={{
+      backgroundColor: "var(--ink)",
+      color: "rgba(253,250,247,0.7)",
+      padding: "3rem var(--page-px)",
+    }}>
+      <div style={{
+        maxWidth: "var(--page-max-width)",
+        margin: "0 auto",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-start",
+        flexWrap: "wrap",
+        gap: "2rem",
+      }}>
+        {/* Left */}
+        <div>
+          <p style={{ fontFamily: "Lora, serif", fontSize: "1.1rem", color: "var(--warm-white)", marginBottom: "1.2rem" }}>
+            Min
+          </p>
+          <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.85rem" }}>
+            <a href="/about" style={{ color: "rgba(253,250,247,0.6)", textDecoration: "none" }}>About</a>
+            <a href="/resume" style={{ color: "rgba(253,250,247,0.6)", textDecoration: "none" }}>Resume</a>
+          </div>
+        </div>
+
+        {/* Right — social icons */}
+        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+          <a href="https://www.linkedin.com/in/shihminchen/" target="_blank" rel="noopener noreferrer"
+            style={{ color: "rgba(253,250,247,0.6)", display: "flex", alignItems: "center" }}
+            aria-label="LinkedIn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <div style={{
+        maxWidth: "var(--page-max-width)",
+        margin: "2rem auto 0",
+        paddingTop: "1.5rem",
+        borderTop: "1px solid rgba(253,250,247,0.1)",
+        fontSize: "0.78rem",
+        color: "rgba(253,250,247,0.35)",
+      }}>
+        ©2024 Portfolio by Shih-Min Chen.
+      </div>
+    </footer>
   );
 }
