@@ -346,13 +346,50 @@ export default async function CaseStudyPage({ params }: { params: Promise<{ id: 
   const tags = getProperty(props, "Tags", "multi_select") as string[];
   const [title, year] = name.split("．");
 
-  // Cover image
-  const rawCover = (page as any).cover?.type === "external"
+  // Extract explicit cover if exists
+  let rawCover = (page as any).cover?.type === "external"
     ? (page as any).cover.external?.url
     : (page as any).cover?.file?.url;
+
+  // Filter out the duplicated title/subtitle/cover from blocks
+  let foundImage = false;
+  let foundTitle = false;
+  let foundSubtitle = false;
+
+  const filteredBlocks = blocks.filter((block) => {
+    // 1. Extract cover from first image if no explicit cover exists
+    if (!rawCover && !foundImage && block.type === "image") {
+      rawCover = block.image?.type === "external"
+        ? block.image.external?.url
+        : block.image?.file?.url;
+      foundImage = true;
+      return false; // Remove from blocks
+    }
+    
+    // 2. Remove the H1 that matches the title
+    if (!foundTitle && block.type === "heading_1") {
+      const h1Text = block.heading_1?.rich_text?.map((t: any) => t.plain_text).join("") ?? "";
+      if (h1Text.includes(title) || title.includes(h1Text)) {
+        foundTitle = true;
+        return false;
+      }
+    }
+
+    // 3. Remove the paragraph/heading_2/heading_3 that matches the subtitle
+    if (!foundSubtitle && (block.type === "paragraph" || block.type === "heading_2" || block.type === "heading_3")) {
+      const text = block[block.type]?.rich_text?.map((t: any) => t.plain_text).join("") ?? "";
+      if (text && subtitle && (text.includes(subtitle) || subtitle.includes(text))) {
+        foundSubtitle = true;
+        return false;
+      }
+    }
+
+    return true; // Keep everything else
+  });
+
   const coverSrc = rawCover ? proxyImageUrl(rawCover) : null;
 
-  const groups = groupBlocks(blocks);
+  const groups = groupBlocks(filteredBlocks);
 
   return (
     <main style={{ minHeight: "100vh" }}>
