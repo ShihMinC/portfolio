@@ -44,9 +44,9 @@ export default function Navbar({ caseStudies }: NavbarProps) {
     >
       <Link
         href="/"
-        style={{ fontFamily: "Lora, serif", fontSize: "1.1rem", fontWeight: 500, color: "var(--ink)" }}
+        style={{ fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)", fontSize: "1.4rem", fontWeight: 700, color: "var(--ink)", textDecoration: "none" }}
       >
-        Shih-Min Chen
+        Min
       </Link>
 
       <div style={{ display: "flex", gap: "2rem", alignItems: "center" }}>
@@ -163,9 +163,9 @@ export default function Navbar({ caseStudies }: NavbarProps) {
         <Link href="/about" style={{ fontSize: "0.9rem", color: "var(--ink-light)" }}>
           About
         </Link>
-        <Link href="/resume" style={{ fontSize: "0.9rem", color: "var(--ink-light)" }}>
+        <a href="https://docs.google.com/document/d/1HrHsQaFqE_x-I6TIMGiR_J4mjcrYcuo2dwMPbaCzrvM/edit?usp=sharing" target="_blank" rel="noopener noreferrer" style={{ fontSize: "0.9rem", color: "var(--ink-light)", textDecoration: "none" }}>
           Resume
-        </Link>
+        </a>
       </div>
     </nav>
   );

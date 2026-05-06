@@ -51,9 +51,9 @@ export default function CaseStudyCard({ slug, title, year, subtitle, tags, cover
         <div style={{ padding: "1.4rem 1.5rem 1.6rem" }}>
           <div style={{ display: "flex", alignItems: "baseline", gap: "0.6rem", marginBottom: "0.4rem", flexWrap: "wrap" }}>
             <h2 style={{
-              fontFamily: "Lora, serif",
-              fontSize: "clamp(1rem, 2vw, 1.25rem)",
-              fontWeight: 400,
+              fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+              fontSize: "clamp(1.1rem, 2vw, 1.4rem)",
+              fontWeight: 500,
               color: "var(--ink)",
             }}>
               {title}

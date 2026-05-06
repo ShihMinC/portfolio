@@ -1,4 +1,4 @@
-import { getCaseStudies } from "@/lib/notion";
+import { getCaseStudies, notion } from "@/lib/notion";
 import CaseStudyCard from "@/components/CaseStudyCard";
 import Navbar from "@/components/Navbar";
 
@@ -33,42 +33,36 @@ export default async function Home() {
         paddingTop: "var(--hero-pt)",
         paddingBottom: "var(--section-py)",
       }}>
-        <p style={{
-          fontFamily: "Lora, serif",
-          fontSize: "clamp(1.4rem, 4vw, 2rem)",
-          fontWeight: 400,
-          color: "var(--ink)",
-          marginBottom: "1rem",
-        }}>
-          Shih-Min Chen
-        </p>
-        <p style={{
-          fontSize: "0.8rem",
-          letterSpacing: "0.12em",
-          textTransform: "uppercase",
+        <h1 style={{
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+          fontSize: "clamp(2rem, 5vw, 2.5rem)",
+          fontWeight: 700,
           color: "var(--terracotta)",
           marginBottom: "1.5rem",
-          fontWeight: 500,
         }}>
-          UX &amp; Product Designer
-        </p>
-        <h1 style={{
-          fontFamily: "Lora, serif",
-          fontSize: "clamp(2.2rem, 8vw, 3.8rem)",
-          lineHeight: 1.1,
-          fontWeight: 400,
+          ShihMin Chen
+        </h1>
+        
+        <p style={{
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+          fontSize: "clamp(1.8rem, 6vw, 3.2rem)",
+          lineHeight: 1.2,
+          fontWeight: 700,
           color: "var(--ink)",
           maxWidth: "800px",
+          marginBottom: "1.5rem",
         }}>
-          Creating clarity in B2B platforms, enterprise UX &amp; AI tools
-        </h1>
+          <em style={{ fontStyle: "italic", fontWeight: 700 }}>Creating clarity in</em> <br/>
+          <em style={{ fontStyle: "italic", color: "var(--terracotta)", fontWeight: 700 }}>B2B</em> platforms, <em style={{ fontStyle: "italic", color: "var(--terracotta)", fontWeight: 700 }}>Enterprise</em> UX &amp; <em style={{ fontStyle: "italic", color: "var(--terracotta)", fontWeight: 700 }}>AI</em> tools
+        </p>
+        
         <p style={{
-          marginTop: "2rem",
           fontSize: "clamp(1rem, 2vw, 1.15rem)",
           color: "var(--ink-light)",
           lineHeight: 1.6,
-          maxWidth: "560px",
-          fontWeight: 300,
+          maxWidth: "700px",
+          fontWeight: 400,
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
         }}>
           Specializing in complex B2B platforms and AI-enabled workflows.
           <br />
@@ -90,32 +84,47 @@ export default async function Home() {
         paddingTop: "var(--section-py)",
         paddingBottom: "8rem" 
       }}>
-        <p style={{
-          fontSize: "0.75rem",
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: "var(--ink-light)",
-          marginBottom: "2.5rem",
-          fontWeight: 500,
+        <h2 style={{
+          fontFamily: "var(--font-dm-sans, 'DM Sans', sans-serif)",
+          fontSize: "clamp(1.5rem, 3vw, 2rem)",
+          fontWeight: 700,
+          color: "var(--ink)",
+          marginBottom: "2rem",
         }}>
           Selected Work
-        </p>
+        </h2>
 
         <div style={{ 
           display: "grid",
           gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 360px), 1fr))",
           gap: "1.5rem",
         }}>
-          {caseStudies.map((page: any) => {
+          {await Promise.all(caseStudies.map(async (page: any) => {
             const name = getProperty(page.properties, "Name", "title");
             const subtitle = getProperty(page.properties, "Subtitle", "rich_text");
             const tags = getProperty(page.properties, "Tags", "multi_select") as string[];
             const [title, year] = name.split("．");
-
+            
             // Extract cover image URL from Notion page
-            const rawCover = page.cover?.type === "external"
+            let rawCover = page.cover?.type === "external"
               ? page.cover.external?.url
               : page.cover?.file?.url;
+
+            // If no cover is explicitly set, use the first image in the page's blocks
+            if (!rawCover) {
+              try {
+                const blocksResponse = await notion.blocks.children.list({ block_id: page.id, page_size: 50 });
+                const firstImage = blocksResponse.results.find((b: any) => b.type === "image");
+                if (firstImage) {
+                  rawCover = (firstImage as any).image?.type === "external"
+                    ? (firstImage as any).image.external?.url
+                    : (firstImage as any).image?.file?.url;
+                }
+              } catch (err) {
+                // Ignore fetch errors for blocks
+              }
+            }
+
             // Proxy signed S3 URLs through our API route
             const cover = rawCover
               ? (rawCover.includes("prod-files-secure.s3") || rawCover.includes("secure.notion-static")
@@ -134,7 +143,7 @@ export default async function Home() {
                 cover={cover}
               />
             );
-          })}
+          }))}
         </div>
       </section>
 
@@ -167,13 +176,13 @@ function Footer() {
           </p>
           <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.85rem" }}>
             <a href="/about" style={{ color: "rgba(253,250,247,0.6)", textDecoration: "none" }}>About</a>
-            <a href="/resume" style={{ color: "rgba(253,250,247,0.6)", textDecoration: "none" }}>Resume</a>
+            <a href="https://docs.google.com/document/d/1HrHsQaFqE_x-I6TIMGiR_J4mjcrYcuo2dwMPbaCzrvM/edit?usp=sharing" target="_blank" rel="noopener noreferrer" style={{ color: "rgba(253,250,247,0.6)", textDecoration: "none" }}>Resume</a>
           </div>
         </div>
 
         {/* Right — social icons */}
         <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <a href="https://www.linkedin.com/in/shihminchen/" target="_blank" rel="noopener noreferrer"
+          <a href="https://www.linkedin.com/in/shih-min-chen/" target="_blank" rel="noopener noreferrer"
             style={{ color: "rgba(253,250,247,0.6)", display: "flex", alignItems: "center" }}
             aria-label="LinkedIn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -191,7 +200,7 @@ function Footer() {
         fontSize: "0.78rem",
         color: "rgba(253,250,247,0.35)",
       }}>
-        ©2024 Portfolio by Shih-Min Chen.
+        ©{new Date().getFullYear()} Portfolio by Shih-Min Chen.
       </div>
     </footer>
   );
